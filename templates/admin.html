@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>管理后台</title>
+</head>
+<body>
+    <div style="max-width: 300px; margin: 50px auto; text-align: center;">
+        <h3>上传新二维码</h3>
+        {% with messages = get_flashed_messages() %}
+          {% if messages %}<p style="color:red">{{ messages[0] }}</p>{% endif %}
+        {% endwith %}
+        <form method="post" enctype="multipart/form-data">
+            <input type="password" name="password" placeholder="管理密码" required><br><br>
+            <input type="file" name="file" accept="image/*" required><br><br>
+            <button type="submit">更新二维码</button>
+        </form>
+    </div>
+</body>
+</html>

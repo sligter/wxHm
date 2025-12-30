@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>加入群聊</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; background-color: #f5f5f5; padding-top: 50px; }
+        .card { background: white; width: 80%; max-width: 350px; margin: 0 auto; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        img { width: 100%; height: auto; border-radius: 4px; }
+        p { color: #666; font-size: 14px; margin-top: 15px; }
+        .tip { color: #07c160; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h3>扫码或长按加入群聊</h3>
+        <img src="/uploads/current_group.png?t={{ range(1, 9999) | random }}" alt="群二维码">
+        <p class="tip">长按上方二维码识别入群</p>
+        <p>若二维码失效，请联系管理员</p>
+    </div>
+</body>
+</html>
