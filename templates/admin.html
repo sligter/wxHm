@@ -1,58 +1,141 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>后台管理</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; background: #f8f9fa; display: flex; flex-direction: column; align-items: center; }
+        .container { width: 100%; max-width: 400px; background: white; padding: 25px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        input, button { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 5px; box-sizing: border-box; }
+        button { background: #07c160; color: white; border: none; cursor: pointer; font-weight: bold; }
+        button:hover { background: #06ad56; }
+        .msg { color: #f5222d; font-size: 14px; margin-bottom: 10px; text-align: center; }
+        
+        .group-list { margin-top: 30px; width: 100%; max-width: 400px; }
+        .group-item { 
+            background: #fff; 
+            padding: 12px 15px; 
+            border-bottom: 1px solid #eee; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            font-size: 14px; 
+        }
+        .group-name { font-weight: 500; color: #333; flex-grow: 1; }
+        .actions { display: flex; gap: 10px; align-items: center; }
+        .actions a { color: #007bff; text-decoration: none; font-size: 13px; }
+        
+        .btn-op { 
+            background: none; border: none; padding: 0; margin: 0; width: auto; 
+            font-size: 13px; cursor: pointer; font-weight: normal;
+        }
+        .btn-rename { color: #1890ff; }
+        .btn-delete { color: #ff4d4f; }
+        .cache-tip { font-size: 11px; color: #aaa; margin-top: -5px; margin-bottom: 10px; display: block; }
+    </style>
+</head>
 <body>
-    <div class="card">
+    <div class="container">
         <h3>多群组活码管理</h3>
-        {% with messages = get_flashed_messages() %}
-            {% if messages %}<p class="flash">{{ messages[0] }}</p>{% endif %}
+        {% with msgs = get_flashed_messages() %}
+            {% if msgs %}<p class="msg" id="flashMsg">{{ msgs[0] }}</p>{% endif %}
         {% endwith %}
         
-        <form method="post" enctype="multipart/form-data">
-            <input type="password" name="password" placeholder="管理密码" required>
-            <input type="text" name="group_name" placeholder="群组名称" required>
+        <form id="uploadForm" method="post" enctype="multipart/form-data">
+            <input type="password" id="mainPwd" name="password" placeholder="管理密码" required>
+            <span class="cache-tip" id="cacheStatus">密码将加密缓存3天</span>
+            <input type="text" name="group_name" placeholder="群组名称（如：技术群）" required>
             <input type="file" name="file" accept="image/*" required>
-            <button type="submit">上传并发布</button>
+            <button type="submit" onclick="savePwd()">确认上传并发布</button>
         </form>
     </div>
 
     <div class="group-list">
         <h4>当前在线群组：</h4>
         {% for g in groups %}
-        <div class="group-item" style="flex-direction: column; align-items: flex-start; gap: 10px; border: 1px solid #eee; padding: 15px; margin-bottom: 10px; border-radius: 8px;">
-            <div style="width: 100%; display: flex; justify-content: space-between;">
-                <strong>{{ g }}</strong>
-                <a href="/group/{{ g }}" target="_blank">预览链接</a>
-            </div>
-            
-            <div style="display: flex; gap: 10px; width: 100%;">
-                <form action="/admin/rename" method="post" style="display: flex; gap: 5px; flex: 1;">
-                    <input type="hidden" name="password" class="pwd-input-hidden"> <input type="hidden" name="old_name" value="{{ g }}">
-                    <input type="text" name="new_name" placeholder="新名称" required style="margin: 0; padding: 5px;">
-                    <button type="button" onclick="submitRename(this)" style="padding: 5px 10px; width: auto; font-size: 12px; background: #1890ff;">更名</button>
-                </form>
-
-                <form action="/admin/delete/{{ g }}" method="post" onsubmit="return confirm('确定要删除整个群组吗？')">
-                    <input type="hidden" name="password" class="pwd-input-hidden">
-                    <button type="button" onclick="submitDelete(this)" style="padding: 5px 10px; width: auto; font-size: 12px; background: #ff4d4f;">删除</button>
-                </form>
+        <div class="group-item">
+            <span class="group-name">{{ g }}</span>
+            <div class="actions">
+                <a href="/group/{{ g }}" target="_blank">预览</a>
+                <button class="btn-op btn-rename" onclick="handleRename('{{ g }}')">更名</button>
+                <button class="btn-op btn-delete" onclick="handleDelete('{{ g }}')">删除</button>
             </div>
         </div>
         {% endfor %}
     </div>
 
+    <form id="opForm" method="post" style="display:none;">
+        <input type="password" name="password" id="opPwd">
+        <input type="hidden" name="old_name" id="oldName">
+        <input type="hidden" name="new_name" id="newName">
+    </form>
+
     <script>
-        // 为了方便，点击按钮时自动获取第一个输入框里的密码
-        function submitRename(btn) {
-            const pwd = document.querySelector('input[name="password"]').value;
-            if(!pwd) { alert("请先在上方输入管理密码"); return; }
-            btn.form.querySelector('.pwd-input-hidden').value = pwd;
-            btn.form.submit();
+        const PWD_KEY = 'admin_pwd_cache';
+        const EXPIRE_KEY = 'admin_pwd_expire';
+        const THREE_DAYS = 3 * 24 * 60 * 60 * 1000; // 3天的毫秒数
+
+        // 页面加载时：检查缓存
+        window.onload = function() {
+            const cachedPwd = localStorage.getItem(PWD_KEY);
+            const expireTime = localStorage.getItem(EXPIRE_KEY);
+            const now = new Date().getTime();
+
+            if (cachedPwd && expireTime && now < expireTime) {
+                document.getElementById('mainPwd').value = cachedPwd;
+                document.getElementById('cacheStatus').innerText = "已自动填充缓存密码";
+                document.getElementById('cacheStatus').style.color = "#07c160";
+            } else {
+                localStorage.removeItem(PWD_KEY);
+                localStorage.removeItem(EXPIRE_KEY);
+            }
+        };
+
+        // 提交时：保存密码到缓存
+        function savePwd() {
+            const pwd = document.getElementById('mainPwd').value;
+            if (pwd) {
+                const expireAt = new Date().getTime() + THREE_DAYS;
+                localStorage.setItem(PWD_KEY, pwd);
+                localStorage.setItem(EXPIRE_KEY, expireAt);
+            }
         }
-        function submitDelete(btn) {
-            const pwd = document.querySelector('input[name="password"]').value;
-            if(!pwd) { alert("请先在上方输入管理密码"); return; }
-            if(confirm('确定要删除该群组及其所有图片吗？')) {
-                btn.form.querySelector('.pwd-input-hidden').value = pwd;
-                btn.form.submit();
+
+        function getPassword() {
+            const pwd = document.getElementById('mainPwd').value;
+            if (!pwd) {
+                alert("请先输入管理密码");
+                return null;
+            }
+            savePwd(); // 每次使用时刷新一下有效期
+            return pwd;
+        }
+
+        function handleRename(oldName) {
+            const pwd = getPassword();
+            if (!pwd) return;
+            const newName = prompt("请输入群组【" + oldName + "】的新名称：");
+            if (newName && newName.trim() !== "" && newName !== oldName) {
+                const form = document.getElementById('opForm');
+                form.action = "/admin/rename";
+                document.getElementById('opPwd').value = pwd;
+                document.getElementById('oldName').value = oldName;
+                document.getElementById('newName').value = newName.trim();
+                form.submit();
+            }
+        }
+
+        function handleDelete(groupName) {
+            const pwd = getPassword();
+            if (!pwd) return;
+            if (confirm("确定要删除群组【" + groupName + "】吗？")) {
+                const form = document.getElementById('opForm');
+                form.action = "/admin/delete/" + encodeURIComponent(groupName);
+                document.getElementById('opPwd').value = pwd;
+                form.submit();
             }
         }
     </script>
 </body>
+</html>
