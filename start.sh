@@ -2,7 +2,7 @@
 
 # --- 配置区 ---
 APP_NAME="wxHm"
-PORT=5000
+PORT=8092
 WORKERS=4
 LOG_DIR="logs"
 PID_FILE="app.pid"
