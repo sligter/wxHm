@@ -70,28 +70,95 @@
 
 ## 📦 部署指南
 
-### 1. 环境安装
+### 方式一：Docker 部署（推荐）
+
+#### 1. 快速开始
+
+```bash
+# 1. 克隆项目
+git clone https://github.com/cooker/wxHm.git
+cd wxHm
+
+# 2. 配置环境变量（可选）
+cp .env.example .env
+# 编辑 .env 文件，修改管理员密码等配置
+
+# 3. 启动服务
+docker-compose up -d
+
+# 4. 查看日志
+docker-compose logs -f
+```
+
+#### 2. 访问地址
+
+- 项目首页：http://localhost:8092
+- 管理后台：http://localhost:8092/admin
+- 统计看板：http://localhost:8092/admin/stats
+
+#### 3. 常用命令
+
+```bash
+# 启动服务
+docker-compose up -d
+
+# 停止服务
+docker-compose down
+
+# 重启服务
+docker-compose restart
+
+# 查看运行状态
+docker-compose ps
+
+# 查看实时日志
+docker-compose logs -f
+
+# 更新代码后重新构建
+docker-compose up -d --build
+```
+
+#### 4. 数据持久化
+
+以下目录已通过 Docker volumes 持久化，数据不会因容器重启而丢失：
+- `uploads/` - 上传的二维码图片
+- `instance/` - SQLite 数据库文件
+- `logs/` - 应用日志
+
+---
+
+### 方式二：传统部署
+
+#### 1. 环境安装
 
 ```bash
 pip install Flask Flask-SQLAlchemy Pillow user-agents werkzeug gunicorn
-
 ```
 
-### 2. 关键配置
+#### 2. 关键配置
 
 修改 `app.py` 中的 `ADMIN_PASSWORD`。
 
-### 3. Nginx 配置建议 (若有)
+#### 3. 启动服务
+
+```bash
+# 使用启动脚本
+bash start.sh
+
+# 或直接使用 gunicorn
+gunicorn --workers 1 --bind 0.0.0.0:8092 app:app
+```
+
+#### 4. Nginx 配置建议（若有）
 
 务必添加以下 Header 以支持 IP 识别：
 
 ```nginx
 location / {
-    proxy_pass http://127.0.0.1:5000;
+    proxy_pass http://127.0.0.1:8092;
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
 }
-
 ```
 
 ---

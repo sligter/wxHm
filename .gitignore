@@ -38,3 +38,17 @@ Thumbs.db
 .vscode/
 .idea/
 *.swp
+# --- 数据库文件 ---
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# --- 日志文件 ---
+logs/
+*.log
+*.pid
+
+# --- Docker 相关 ---
+# .env 文件包含敏感信息，不应提交
+# .env.example 作为模板可以提交
